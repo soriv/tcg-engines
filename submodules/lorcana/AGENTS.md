@@ -23,6 +23,37 @@ Shared platform and multi-game simulator exposure belongs in sibling
 workspaces. Map Lorcana concepts through `../agnostic-simulator` contracts;
 keep Lorcana rules and engine semantics here.
 
+## AI Development
+
+Use a missing-capability inventory before writing AI code. Do not broadly
+re-audit the repository when the required gap is already known.
+
+For each missing AI capability, search in this order:
+
+1. existing Lorcana implementation in this repository;
+2. existing implementation in another game workspace in this repository;
+3. existing game-agnostic/shared implementation in this repository;
+4. a mature public external implementation or specification with compatible
+   licensing;
+5. only then, the smallest custom implementation needed to bridge the gap.
+
+Reuse existing legal-action generation, action execution, serialization,
+deadlock handling, match harnesses, and rule resolution when they already
+exist. Do not create parallel versions of those systems for AI experiments.
+
+Keep adapters thin: translate existing state/action boundaries and delegate
+behavior to existing engines or search implementations. Do not duplicate card
+rules, targeting rules, game-state semantics, or heuristic logic inside an
+adapter unless a verified missing capability requires it.
+
+Do not move an AI abstraction into a shared package merely because it might be
+reusable. Promote it only after more than one game path demonstrates the same
+shared contract in practice.
+
+When a custom AI component is unavoidable, keep it isolated, deterministic
+where practical, and covered by the smallest focused test that proves the new
+behavior without retesting existing engine rules.
+
 ## Triage
 
 - Start player reports from the exact replay/game id and turn when available.
