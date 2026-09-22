@@ -456,7 +456,7 @@ Do not replace an existing row with a parallel subsystem.
 | Hidden-state determinization contract | No Lorcana implementation yet | OpenSpiel `resample_from_infostate`; OpenSpiel card-game implementations; EXEC_MAGICA; Scopa | Implement the smallest Lorcana-specific adapter that freezes observer-known information and resamples only policy-approved unknown information | **Missing thin adapter** |
 | Hidden-zone redistribution mechanics | No Lorcana search adapter yet | OpenSpiel Gin Rummy; EXEC_MAGICA; AlphaStone design pattern | Preserve observable zone counts, shuffle only permitted hidden identities/order, then restore via normal Lorcana state loaders | **Missing thin adapter** |
 | Information-state equality check | Existing projected player board is the likely comparison surface; state fingerprint tooling already exists | OpenSpiel post-resample information-state invariant | Define a canonical comparison from the existing player projection and assert original == sampled for the observer | **Small verification helper** |
-| Fair hidden-card candidate universe | Current fair strategy deliberately avoids hidden opponent deck access; no lawful generic hidden-card universe is currently exposed | Existing information policy takes precedence; OpenSpiel requires a valid information-state sampler | **Do not use the true opponent deck as a fallback.** Determine whether the match format supplies an open decklist or an existing public prior/model. If neither exists, fair search must report/limit this capability until a policy-approved model is selected | **Unresolved specification dependency** |
+| Fair hidden-card candidate universe | Current fair strategy deliberately avoids hidden opponent deck access | Recent competitive tournament decklists grouped by current format/meta and archetype, with InkDecks as the initial public tournament index | Build the hidden-card universe from normalized recent top-performing decklists that match the current format and inferred archetype. Filter candidates by publicly observed cards. Never fall back to the true opponent deck and do not expand to the full Lorcana card pool unless no tournament prior can represent the observed public evidence | **Specified: tournament-meta prior** |
 | Oracle hidden-card universe | Authoritative state and full opponent deck data already exist and oracle strategies explicitly permit hidden opponent knowledge | Existing oracle information policy | Feed authoritative hidden identities only when oracle mode is selected | **Reuse + thin wiring** |
 | Opponent belief weighting | No MVP implementation required | Scopa belief/determinizer pattern | Start uniform. Add only after benchmark evidence; never derive fair beliefs from raw authoritative hidden state | **Deferred** |
 | Chance / unknown deck order | Authoritative engine already resolves draws from deck state; sampled world can carry a sampled order | OpenSpiel chance sampling + EXEC_MAGICA per-world deck shuffle | Sample unknown order during determinization and let the normal Lorcana engine execute draws/effects | **Missing only in determinizer** |
@@ -464,6 +464,76 @@ Do not replace an existing row with a parallel subsystem.
 | AI-vs-AI evaluation harness | Existing simulator strategy suite, deterministic seeds, traces, benchmark artifacts, promotion gates | Lorcana simulator | Add search strategies to the existing harness when implementation exists | **Reuse** |
 | Decision diagnostics / traces | Existing `AutomatedActionDecisionTrace`, board snapshots, ordered candidates, execution attempts and diagnostics | Lorcana automation | Add search-specific statistics only if required; keep existing trace as the primary decision record | **Reuse** |
 | Unsupported planner decision shapes | Existing diagnostics explicitly surface unsupported/overflow shapes | Lorcana planner | Search must not bypass these with a second resolver. Improve planner separately when a concrete unsupported shape blocks search | **Existing limitation, separate track** |
+
+### Tournament-meta prior for fair hidden cards
+
+Fair search should use a **small competitive metagame prior**, not an unrestricted
+all-card search.
+
+Initial public source:
+[InkDecks tournament results](https://inkdecks.com/lorcana-tournaments) and its
+format/meta/archetype tournament deck pages.
+
+The tournament source is an index of competitive deck construction, not the source of
+Lorcana card rules or card assets.
+
+#### Prior construction
+
+For the current match format:
+
+1. Select recent competitive tournament decklists from the same format/meta.
+2. Prefer high-finishing lists and sufficiently large/relevant events over casual lists.
+3. Group lists by ink colors and archetype.
+4. Normalize every deck to Lorcana canonical card IDs from `@tcg/lorcana-cards`.
+5. Build an archetype prior from card frequencies across the selected lists.
+6. Treat highly repeated cards as the archetype core and lower-frequency cards as flex
+   or tech candidates. These are statistical observations, not hardcoded slot counts.
+7. As the opponent reveals cards, discard or down-weight archetype/list candidates that
+   cannot explain the publicly observed cards and counts.
+8. Sample unknown opponent hand/deck identities only from the remaining
+   policy-approved tournament prior.
+9. Preserve the normal Lorcana deck-construction/count constraints applicable to the
+   selected format.
+
+Do **not** search the entire Lorcana catalog merely to account for extremely rare rogue
+cards. If the public evidence cannot be represented by the selected tournament prior,
+surface an out-of-prior condition and broaden to additional recent tournament lists
+before considering any wider model.
+
+The first version does not need a learned opponent model. Tournament list frequency is
+the prior; publicly observed cards are the evidence.
+
+#### Fairness boundary
+
+- The live opponent's authoritative deck contents must never be consulted to choose,
+  filter, repair, or score the fair prior.
+- A tournament list may coincidentally equal the real opponent list; that is allowed
+  because the list was selected from public metagame information rather than hidden
+  match state.
+- Oracle mode remains separate and may use authoritative hidden information only under
+  the existing oracle policy.
+- Keep the source snapshot/date/format metadata with any normalized prior so tests and
+  benchmarks are reproducible.
+
+#### Data-source boundary
+
+Do not duplicate InkDecks card images, card rules text, page markup, editorial text, or
+site presentation into this repository.
+
+Existing card-data authorities remain:
+
+- **Ravensburger catalog API** through
+  `lorcana-cards/scripts/fetch-inputs.ts`: primary existing pipeline for card stats,
+  images, variants, and localized catalog data.
+- **Lorcast API** through the same existing pipeline: card text with symbols used by the
+  card-generation workflow.
+- Generated `@tcg/lorcana-cards` definitions remain the runtime card-data source for
+  search.
+
+InkDecks is used only for competitive deck/meta observations needed to construct the
+fair prior. Any automated ingestion must use a permitted access method and should store
+only the normalized facts needed for the prior plus provenance, rather than mirroring
+the source site.
 
 ### Minimal new-code boundary
 
