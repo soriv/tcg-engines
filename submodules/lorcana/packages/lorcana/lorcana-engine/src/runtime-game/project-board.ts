@@ -32,15 +32,11 @@ import { getLegalOrOptionIndices } from "../runtime-moves/resolution/action-effe
 import type { ActionResolutionInput } from "../runtime-moves/resolution/action-effects/types";
 import { getActivePlayFromUnderPermissions } from "../runtime-moves/effects/play-from-under-permissions";
 import type { ResolutionSelectionRuntimeContext } from "../runtime-moves/resolution/action-effects/selection-context";
-import {
-  projectLorcanaCardDerived,
-  createDefaultProjectedLorcanaCardDerived,
-} from "../projection/card-derived";
+import { projectLorcanaCardDerived } from "../projection/card-derived";
 import {
   canInkThisTurn,
   createLorcanaRuntimeCardDeriver,
 } from "../runtime-moves/state/runtime-card-derived";
-import { getOrBuildDerivedLorcanaCardProjection } from "../runtime-moves/state/derived-card-cache";
 import type { StateScopedValueCache } from "../core/runtime/state-scoped-value-cache";
 import { buildStaticEffectRegistry } from "../rules/static-effect-registry";
 import { buildZoneRegistry } from "../core/runtime/zone-registry";
