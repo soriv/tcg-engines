@@ -426,6 +426,77 @@ Do not add these merely because a stronger AI might eventually use them:
 Any later addition to this list requires benchmark evidence for why the existing path is
 insufficient and a source audit before custom implementation.
 
+## Search AI implementation correspondence table
+
+This table maps the planned search-AI specification to existing code and records the
+smallest remaining implementation seam. Treat it as the implementation checklist.
+Do not replace an existing row with a parallel subsystem.
+
+| Planned capability | Existing Lorcana / shared implementation | Reuse authority | Remaining work | Status |
+| --- | --- | --- | --- | --- |
+| Player-scoped visible board | `LorcanaServer.getAutomatedPlanningBoardForPlayer()` delegates to runtime `getProjectedBoardView({ role: "player", playerID })`; `types/projected-board.ts` already carries hidden cards, zone membership, counts, public face state, winner/status and pending work | Lorcana engine + official Lorcana visibility rules | Verify the current projection exactly covers search invariants for hand, deck, inkwell, facedown Play cards and temporary reveals. Extend the existing projection only if a concrete rule case is missing | **Reuse / verify** |
+| Zone visibility rules | Existing projected-card model has `hidden?`, `definitionId?`, `publicFaceState?`, zone IDs and observable counts | Lorcana Comprehensive Rules section 7 | No second zone model. Map official visibility into the existing projection | **Reuse** |
+| Fair vs oracle access boundary | `StrategyInformationPolicy`, `AutomatedActionOpponentKnowledgeSource`, strategy registry `informationPolicy: "public" | Lorcana automation types + registry | Search entry point must propagate the selected policy into determinization; fair mode must never read raw hidden opponent zones | **Reuse + thin wiring** |
+| Legal action enumeration | `automation/planner.ts` and `enumerateAutomatedActionsForCurrentActor()` | Lorcana planner | None for search. Search consumes planner candidates | **Reuse** |
+| Candidate validation | Planner adapter `validateCandidate()` delegates to normal engine validation | Lorcana engine | None | **Reuse** |
+| Candidate execution | `takeAutomatedActionWithAdapter()`, `executeAutomatedActionCandidate()`, normal server move execution | Lorcana engine | Search-selected candidate must be sent back through this path | **Reuse** |
+| Stable action identity | `AutomatedActionCandidateSummary.stableKey` plus planner candidate keying/deduplication | Lorcana automation | Verify that the same public action receives the same stable identity across determinizations; add only a thin canonical-key adapter if sampled instance IDs make this fail | **Reuse / verify** |
+| Authoritative state snapshot | `getLorcanaServerAuthoritativeSnapshot()` and authoritative state helpers in `serialization.ts` | Lorcana serialization | None | **Reuse** |
+| State restoration / search fork primitive | `loadLorcanaServerAuthoritativeSnapshot()`, `loadLorcanaServerAuthoritativeState()` | Lorcana serialization | Add a small search-facing fork helper only if no existing caller already packages snapshot + card catalog restoration | **Thin adapter** |
+| Current actor resolution | `resolveServerCurrentActor()`, `getCurrentActorId()` | Lorcana automation | None | **Reuse** |
+| Terminal state / winner / draw | `LorcanaProjectedBoardView.status`, `winner`, `reason`; normal engine state is authoritative | Lorcana engine | Search adapter converts terminal state into rollout outcome only | **Thin adapter** |
+| Repeated-state / deadlock detection | `createAutomatedActionRepeatedStateTracker()`; shared `createSemanticCycleDetector()` in bot-core; existing state fingerprints | Lorcana automation + bot-core | Use one of the existing detectors inside rollouts. Do not create a local Map-based duplicate | **Reuse** |
+| Seeded search randomness | Cyberpunk Monte Carlo uses `createSeededBotRandom()`; deterministic seed streams already exist in bot-core | bot-core + Cyberpunk search | Pass Lorcana/search seeds through the same mechanism | **Reuse + thin wiring** |
+| Flat Monte Carlo | `cyberpunk/.../search/monte-carlo.ts` | Existing repository implementation | Adapt engine/candidate/fork interfaces. Do not rewrite the algorithm | **Reuse + adapter** |
+| UCB1 MCTS | `cyberpunk/.../search/mcts.ts` | Existing repository implementation | Adapt engine/candidate/fork interfaces. Preserve existing budget and rollout semantics | **Reuse + adapter** |
+| Rollout loop | `cyberpunk/.../search/shared.ts::runRollout()` | Existing repository implementation | Route each Lorcana rollout step through the existing current-actor planner | **Reuse + adapter** |
+| Rollout policy | Cyberpunk `randomStrategy` / `greedyStrategy`; Lorcana registered strategies already provide deterministic baseline play | Existing repository implementation | Prefer an existing Lorcana strategy first; if stochastic diversity is required, adapt the existing random-policy pattern rather than inventing a new policy | **Reuse / adapt** |
+| Search budgets | Cyberpunk MC/MCTS rollout limits and tactical depth/node/branch budgets; Lorcana planner already has candidate search caps | Existing repository implementation | Expose only the relevant existing knobs at the Lorcana search boundary | **Reuse** |
+| Tree/subtree reuse | Cyberpunk MCTS persistent `WeakMap` cache and resume logic | Existing repository implementation | Reuse only after Lorcana state identity is verified suitable; otherwise disable cache initially rather than inventing another cache | **Reuse / verify** |
+| Hidden-state determinization contract | No Lorcana implementation yet | OpenSpiel `resample_from_infostate`; OpenSpiel card-game implementations; EXEC_MAGICA; Scopa | Implement the smallest Lorcana-specific adapter that freezes observer-known information and resamples only policy-approved unknown information | **Missing thin adapter** |
+| Hidden-zone redistribution mechanics | No Lorcana search adapter yet | OpenSpiel Gin Rummy; EXEC_MAGICA; AlphaStone design pattern | Preserve observable zone counts, shuffle only permitted hidden identities/order, then restore via normal Lorcana state loaders | **Missing thin adapter** |
+| Information-state equality check | Existing projected player board is the likely comparison surface; state fingerprint tooling already exists | OpenSpiel post-resample information-state invariant | Define a canonical comparison from the existing player projection and assert original == sampled for the observer | **Small verification helper** |
+| Fair hidden-card candidate universe | Current fair strategy deliberately avoids hidden opponent deck access; no lawful generic hidden-card universe is currently exposed | Existing information policy takes precedence; OpenSpiel requires a valid information-state sampler | **Do not use the true opponent deck as a fallback.** Determine whether the match format supplies an open decklist or an existing public prior/model. If neither exists, fair search must report/limit this capability until a policy-approved model is selected | **Unresolved specification dependency** |
+| Oracle hidden-card universe | Authoritative state and full opponent deck data already exist and oracle strategies explicitly permit hidden opponent knowledge | Existing oracle information policy | Feed authoritative hidden identities only when oracle mode is selected | **Reuse + thin wiring** |
+| Opponent belief weighting | No MVP implementation required | Scopa belief/determinizer pattern | Start uniform. Add only after benchmark evidence; never derive fair beliefs from raw authoritative hidden state | **Deferred** |
+| Chance / unknown deck order | Authoritative engine already resolves draws from deck state; sampled world can carry a sampled order | OpenSpiel chance sampling + EXEC_MAGICA per-world deck shuffle | Sample unknown order during determinization and let the normal Lorcana engine execute draws/effects | **Missing only in determinizer** |
+| Board-value evaluator | No generic Lorcana search evaluator required for MVP | Terminal-rollout plan; Cyberpunk evaluator is game-specific and must not be copied | None initially. Add only if terminal rollout is too slow/noisy and after a separate source audit | **Deferred** |
+| AI-vs-AI evaluation harness | Existing simulator strategy suite, deterministic seeds, traces, benchmark artifacts, promotion gates | Lorcana simulator | Add search strategies to the existing harness when implementation exists | **Reuse** |
+| Decision diagnostics / traces | Existing `AutomatedActionDecisionTrace`, board snapshots, ordered candidates, execution attempts and diagnostics | Lorcana automation | Add search-specific statistics only if required; keep existing trace as the primary decision record | **Reuse** |
+| Unsupported planner decision shapes | Existing diagnostics explicitly surface unsupported/overflow shapes | Lorcana planner | Search must not bypass these with a second resolver. Improve planner separately when a concrete unsupported shape blocks search | **Existing limitation, separate track** |
+
+### Minimal new-code boundary
+
+If the table above remains valid after implementation-time verification, the first
+search-AI version should add only these Lorcana-specific seams:
+
+1. **Information-state determinizer**: authoritative snapshot in, observer + information
+   policy + seeded RNG in, valid sampled Lorcana state/server out.
+2. **Search engine adapter**: exposes the existing Lorcana planner/server through the
+   engine operations required by the reused Monte Carlo/MCTS implementation
+   (fork, enumerate, apply, terminal outcome).
+3. **Information-state invariant helper**: compares the existing player-scoped
+   projection before and after determinization.
+4. **Candidate-key bridge only if necessary**: only if existing `stableKey` identity
+   is not stable across sampled worlds.
+
+Everything else in the first search AI should come from existing Lorcana, Cyberpunk,
+bot-core, or cited external specifications.
+
+### Implementation stop conditions
+
+Stop and re-audit instead of inventing behavior if any of these occurs:
+
+- the existing projected player view leaks a hidden identity or omits a legally known
+  identity needed by the information-state invariant;
+- fair mode has no policy-approved candidate universe for hidden cards;
+- sampled instance IDs make existing stable candidate identity unreliable;
+- the current snapshot/load path cannot produce an isolated search world;
+- a reused Cyberpunk search assumption does not hold for Lorcana prompts/effects.
+
+A stop condition is a specification gap to research, not permission to add an
+unreferenced workaround.
+
 ## The most useful files in this folder
 
 If you want to understand or change automation, these are the best starting points:
