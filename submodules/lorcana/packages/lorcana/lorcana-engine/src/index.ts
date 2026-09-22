@@ -91,7 +91,13 @@ export {
   QUEST_ONLY_TEST_STRATEGY_ID,
   questOnlyTestAutomatedActionStrategy,
 } from "./automation";
-export type {\n  AutomatedActionCandidateSummary,\n  AutomatedActionStrategyOption,\n  LorcanaDeterminizationOptions,\n  LorcanaDeterminizationResult,\n  LorcanaHiddenDefinitionPrior,\n} from "./automation";
+export type {
+  AutomatedActionCandidateSummary,
+  AutomatedActionStrategyOption,
+  LorcanaDeterminizationOptions,
+  LorcanaDeterminizationResult,
+  LorcanaHiddenDefinitionPrior,
+} from "./automation";
 export type {
   AcceptedMoveRecord,
   EngineLogRecord,
