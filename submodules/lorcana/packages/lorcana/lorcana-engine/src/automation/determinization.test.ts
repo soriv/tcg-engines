@@ -174,6 +174,7 @@ function sequenceRng(values: readonly number[]): () => number {
 describe("determinizeLorcanaSnapshot", () => {
   it("uses only supplied fair priors for hidden identities and leaves the source untouched", () => {
     const source = createSnapshot();
+    const sourceBefore = structuredClone(source);
     const result = determinizeLorcanaSnapshot({
       snapshot: source,
       observerBoard: createObserverBoard(),
@@ -195,6 +196,7 @@ describe("determinizeLorcanaSnapshot", () => {
       rng: sequenceRng([0.2, 0.8, 0.4, 0.6, 0.1, 0.9]),
     });
 
+    expect(source).toEqual(sourceBefore);
     expect(source.cardsMaps.cardInstances["p2-hand"]).toBe("real-p2-hand");
     expect(result.snapshot.cardsMaps.cardInstances["p2-hand"]).toMatch(/^p2-/);
     expect(result.snapshot.cardsMaps.cardInstances["p2-hand"]).not.toBe("real-p2-hand");
@@ -246,6 +248,44 @@ describe("determinizeLorcanaSnapshot", () => {
     );
     expect(result.snapshot.cardsMaps.cardInstances["p2-deck-b"]).toBe("real-p2-deck-b");
     expect(result.preservedKnownCardIds).toContain("p2-deck-b");
+  });
+
+  it("is deterministic for the same random stream and can vary across different streams", () => {
+    const options = {
+      snapshot: createSnapshot(),
+      observerBoard: createObserverBoard(),
+      observerId: P1,
+      informationPolicy: "fair" as const,
+      cardCatalog: createCatalog([
+        "p1-a",
+        "p1-b",
+        "p1-c",
+        "p2-a",
+        "p2-b",
+        "p2-c",
+        "p2-d",
+      ]),
+      hiddenDefinitionIdsByPlayer: {
+        [P1]: ["p1-a", "p1-b", "p1-c"],
+        [P2]: ["p2-a", "p2-b", "p2-c", "p2-d"],
+      },
+    };
+
+    const first = determinizeLorcanaSnapshot({
+      ...options,
+      rng: sequenceRng([0, 0, 0, 0, 0, 0, 0]),
+    });
+    const repeated = determinizeLorcanaSnapshot({
+      ...options,
+      rng: sequenceRng([0, 0, 0, 0, 0, 0, 0]),
+    });
+    const different = determinizeLorcanaSnapshot({
+      ...options,
+      rng: sequenceRng([0.99, 0.99, 0.99, 0.99, 0.99, 0.99, 0.99]),
+    });
+
+    expect(repeated.snapshot).toEqual(first.snapshot);
+    expect(different.snapshot).not.toEqual(first.snapshot);
   });
 
   it("requires an exact policy-approved prior in fair mode", () => {
