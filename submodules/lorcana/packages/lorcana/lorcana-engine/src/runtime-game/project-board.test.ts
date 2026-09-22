@@ -436,6 +436,39 @@ describe("projectLorcanaBoardView", () => {
     expect(board.players[CANONICAL_PLAYER_ONE]?.deckCount).toBe(2);
   });
 
+  it("does not leak definition-derived fields for hidden authoritative inkwell cards", () => {
+    const testEngine = LorcanaMultiplayerTestEngine.createWithFixture({
+      inkwell: [projectedFriendlyTarget],
+      deck: 2,
+    });
+
+    try {
+      const server = testEngine.asServer();
+      const board = server
+        .getRuntime()
+        .getProjectedBoardView(
+          { role: "player", playerID: CANONICAL_PLAYER_ONE },
+          { serverTimestamp: 0 },
+        );
+      const inkwellId = board?.players[CANONICAL_PLAYER_ONE]?.inkwell[0];
+      const projected = inkwellId ? board?.cards[inkwellId] : undefined;
+
+      expect(projected).toMatchObject({
+        hidden: true,
+        ownerId: CANONICAL_PLAYER_ONE,
+        zone: "inkwell",
+      });
+      expect(projected?.definitionId).toBeUndefined();
+      expect(projected?.fullName).toBeUndefined();
+      expect(projected?.cardType).toBeUndefined();
+      expect(projected?.playCost).toBeUndefined();
+      expect(projected?.strength).toBeUndefined();
+      expect(projected?.lore).toBeUndefined();
+    } finally {
+      testEngine.dispose();
+    }
+  });
+
   it("projects visible card types for characters and locations", () => {
     const testEngine = LorcanaMultiplayerTestEngine.createWithFixture(
       {

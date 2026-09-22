@@ -32,15 +32,11 @@ import { getLegalOrOptionIndices } from "../runtime-moves/resolution/action-effe
 import type { ActionResolutionInput } from "../runtime-moves/resolution/action-effects/types";
 import { getActivePlayFromUnderPermissions } from "../runtime-moves/effects/play-from-under-permissions";
 import type { ResolutionSelectionRuntimeContext } from "../runtime-moves/resolution/action-effects/selection-context";
-import {
-  projectLorcanaCardDerived,
-  createDefaultProjectedLorcanaCardDerived,
-} from "../projection/card-derived";
+import { projectLorcanaCardDerived } from "../projection/card-derived";
 import {
   canInkThisTurn,
   createLorcanaRuntimeCardDeriver,
 } from "../runtime-moves/state/runtime-card-derived";
-import { getOrBuildDerivedLorcanaCardProjection } from "../runtime-moves/state/derived-card-cache";
 import type { StateScopedValueCache } from "../core/runtime/state-scoped-value-cache";
 import { buildStaticEffectRegistry } from "../rules/static-effect-registry";
 import { buildZoneRegistry } from "../core/runtime/zone-registry";
@@ -248,43 +244,24 @@ function buildHiddenCard(args: {
   runtimeCardCache?: StateScopedValueCache<ProjectedLorcanaCardDerived>;
   registry: ReturnType<typeof buildStaticEffectRegistry>;
 }): LorcanaProjectedCard {
-  const {
-    state,
-    zone,
-    ownerId,
-    slotIndex,
-    rawCardId,
-    rawBoard,
-    staticResources,
-    runtimeCardCache,
-    registry,
-  } = args;
+  const { zone, ownerId, slotIndex, rawCardId, rawBoard } = args;
   const meta = rawCardId
     ? (rawBoard.cards[rawCardId]?.meta as LorcanaCardMeta | undefined)
     : undefined;
-  const derived = rawCardId
-    ? getOrBuildDerivedLorcanaCardProjection({
-        runtimeCardCache,
-        stateID: state.ctx._stateID,
-        state,
-        meta,
-        cardInstanceId: rawCardId as CardInstanceId,
-        ownerID: ownerId,
-        controllerID: ownerId,
-        zoneID: rawBoard.cards[rawCardId]?.zoneId,
-        getDefinitionByInstanceId: (instanceId) =>
-          getDefinitionForInstance(staticResources, instanceId).definition,
-        registry,
-      })
-    : createDefaultProjectedLorcanaCardDerived();
 
+  // Hidden identities must not leak definition-derived fields (card type,
+  // stats, cost, keywords, etc.). Preserve only state that the rules expose
+  // independently of identity, such as whether an inkwell card is exerted.
   return {
     id: rawCardId ? (rawCardId as CardInstanceId) : `hidden:${zone}:${ownerId}:${slotIndex}`,
     ownerId,
     zone,
     zoneIndex: slotIndex,
     hidden: true,
-    ...derived,
+    ...(meta?.state === "exerted" ? { exerted: true } : {}),
+    ...(meta?.publicFaceState === "faceUp" || meta?.publicFaceState === "faceDown"
+      ? { publicFaceState: meta.publicFaceState }
+      : {}),
   };
 }
 

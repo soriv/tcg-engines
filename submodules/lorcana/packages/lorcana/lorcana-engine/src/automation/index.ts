@@ -1,5 +1,6 @@
 export * from "./deck-aware-strategy";
 export * from "./decision-trace";
+export * from "./determinization";
 export * from "./default-strategy";
 export * from "./forced-family-strategy";
 export * from "./resolution-shape";

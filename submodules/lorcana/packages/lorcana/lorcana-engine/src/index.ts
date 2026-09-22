@@ -79,6 +79,10 @@ export {
   challengeOnlyTestAutomatedActionStrategy,
   computeAutomatedActionStateFingerprint,
   createAutomatedActionBoardSnapshot,
+  createLorcanaInformationStateKey,
+  createLorcanaInformationStateProjection,
+  assertSameLorcanaInformationState,
+  determinizeLorcanaSnapshot,
   deckAwareLoreRaceAutomatedActionStrategy,
   defaultLoreRaceAutomatedActionStrategy,
   getAutomatedActionStrategyOption,
@@ -87,7 +91,13 @@ export {
   QUEST_ONLY_TEST_STRATEGY_ID,
   questOnlyTestAutomatedActionStrategy,
 } from "./automation";
-export type { AutomatedActionCandidateSummary, AutomatedActionStrategyOption } from "./automation";
+export type {
+  AutomatedActionCandidateSummary,
+  AutomatedActionStrategyOption,
+  LorcanaDeterminizationOptions,
+  LorcanaDeterminizationResult,
+  LorcanaHiddenDefinitionPrior,
+} from "./automation";
 export type {
   AcceptedMoveRecord,
   EngineLogRecord,
