@@ -41,6 +41,27 @@ service topology, or platform-owned app code to this public repository.
   hatches.
 - Run focused checks for the touched workspace before broader public CI.
 
+## Change Discipline
+
+- Prefer existing repository behavior and mature authoritative external
+  specifications or implementations over inventing a parallel local standard.
+  Check what already exists before adding a new specification, abstraction, or
+  subsystem.
+- Keep one canonical home for each rule or specification. Update current files
+  in place and use Git history for old states instead of creating versioned
+  duplicates.
+- Promote code into shared or game-agnostic packages only after reuse across
+  games is demonstrated in practice. Do not generalize for hypothetical future
+  reuse.
+- Prefer tests, CI, linting, and repository settings over prose when a rule can
+  be enforced automatically.
+- Keep `main` as the only long-lived branch by default. Use a temporary branch
+  only when isolation, review, required CI, or independent parallel work makes
+  it useful.
+- Keep temporary branches small and single-purpose. Merge or abandon them
+  quickly, then delete them; do not use branches as backups or historical
+  storage.
+
 ## Validation
 
 Use the smallest relevant check first:
