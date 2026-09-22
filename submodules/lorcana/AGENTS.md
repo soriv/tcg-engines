@@ -25,6 +25,12 @@ keep Lorcana rules and engine semantics here.
 
 ## AI Development
 
+The canonical search-AI implementation plan, hidden-information model, source
+authorities, and external reference list live in
+`packages/lorcana/lorcana-engine/src/automation/README.md` under
+**Planned search AI specification and authorities**. Read that section before
+adding search, determinization, belief, rollout, or information-state code.
+
 Use a missing-capability inventory before writing AI code. Do not broadly
 re-audit the repository when the required gap is already known.
 
